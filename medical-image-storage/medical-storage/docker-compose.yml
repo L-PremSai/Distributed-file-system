@@ -1,0 +1,57 @@
+# ============================================================
+# docker-compose.yml
+# Starts MySQL + SeaweedFS (master + volume) for local dev
+# Usage: docker-compose up -d
+# ============================================================
+
+version: "3.8"
+
+services:
+
+  # ── MySQL 8 ──────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: medical-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: medical_imaging
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./src/main/resources/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── SeaweedFS Master ─────────────────────────────────────
+  seaweedfs-master:
+    image: chrislusf/seaweedfs:latest
+    container_name: seaweedfs-master
+    restart: unless-stopped
+    command: "master -ip=seaweedfs-master -port=9333"
+    ports:
+      - "9333:9333"
+    volumes:
+      - seaweed-master-data:/data
+
+  # ── SeaweedFS Volume Node ────────────────────────────────
+  seaweedfs-volume:
+    image: chrislusf/seaweedfs:latest
+    container_name: seaweedfs-volume
+    restart: unless-stopped
+    command: "volume -mserver=seaweedfs-master:9333 -port=8080 -dir=/data"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - seaweedfs-master
+    volumes:
+      - seaweed-volume-data:/data
+
+volumes:
+  mysql-data:
+  seaweed-master-data:
+  seaweed-volume-data:

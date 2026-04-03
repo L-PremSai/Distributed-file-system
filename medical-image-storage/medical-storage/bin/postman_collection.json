@@ -1,0 +1,152 @@
+{
+  "info": {
+    "name": "Medical Image Storage API",
+    "description": "Complete Postman collection for the Scalable Medical Image Storage System",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8085", "type": "string" },
+    { "key": "imageId",  "value": "1",                    "type": "string" },
+    { "key": "patientId","value": "PAT-20240101-001",     "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "1. Upload Medical Image",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/images/upload",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "file",        "type": "file",  "src": "/path/to/brain_mri.jpg",
+              "description": "Select a JPEG/PNG/DICOM file" },
+            { "key": "patientId",   "type": "text",  "value": "PAT-20240101-001" },
+            { "key": "imageType",   "type": "text",  "value": "MRI" },
+            { "key": "description", "type": "text",  "value": "Brain MRI – baseline scan" }
+          ]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('imageId', body.id);",
+              "pm.test('Has imageUrl', () => pm.expect(body.imageUrl).to.include('http'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Get Image Metadata",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/images/{{imageId}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Has fileId', () => pm.expect(pm.response.json().fileId).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Download Image Binary",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/images/download/{{imageId}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Is binary', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('image'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. List Images by Patient",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/patients/{{patientId}}/images?page=0&size=20",
+          "host": ["{{baseUrl}}"],
+          "path": ["api","patients","{{patientId}}","images"],
+          "query": [
+            { "key": "page", "value": "0" },
+            { "key": "size", "value": "20" }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Has pagination', () => {",
+              "  pm.expect(body).to.have.property('totalElements');",
+              "  pm.expect(body).to.have.property('content');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Delete Image",
+      "request": {
+        "method": "DELETE",
+        "url": "{{baseUrl}}/api/images/{{imageId}}",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 204', () => pm.response.to.have.status(204));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Get Image – 404 Case",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/images/99999",
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 404', () => pm.response.to.have.status(404));",
+              "pm.test('Error body', () => pm.expect(pm.response.json().error).to.equal('NOT_FOUND'));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
